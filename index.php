@@ -19,8 +19,13 @@ class RequestContext {
 class Routing {
     
     private $registeredRoutes = [];
+    private $rootPath = null;
 
-    public function RegisterRoute(string $routeName, string $routeUrl, array $routeDefaults = null) {
+    public function SetRootPath(string $path) {
+        $this->rootPath = $path;
+    }
+
+    public function RegisterRoute(string $routeName, string $routeUrl, array $routeDefaults = null, array $routeConstraints = null) {
         if (is_null($routeName) || empty($routeName)) {
             trigger_error('$routeName cannot be null or empty.', E_USER_ERROR);
         }
@@ -31,23 +36,34 @@ class Routing {
             trigger_error('$routeUrl cannot start with "/".', E_USER_ERROR);
         }
         
-        // todo: {controller} and {action} must be defined
-
         $this->registeredRoutes[$routeName] = [
             'name' => $routeName,
             'url' => $routeUrl,
-            'parts' => explode('/', $routeUrl)
+            'parts' => explode('/', $routeUrl),
+            'defaults' => $routeDefaults,
+            'constraints' => $routeConstraints
         ];
+    }
+
+    private function RemoveAtStart(string $value, string $removeValue) {
+        if (strncasecmp($value, $removeValue, strlen($removeValue)) == 0) {
+            return substr($value, strlen($removeValue));
+        }
+
+        return $value;
     }
 
     private function CreateRequestContext() {
         $requestContext = new RequestContext();
         
         $requestUrl = $_SERVER['REQUEST_URI'];
-        if (substr($requestUrl, 0, 1) == '/') {
-            $requestUrl = substr($requestUrl, 1);
-        }
+        $requestUrl = $this->RemoveAtStart($requestUrl, '/');
 
+        if (!empty($this->rootPath)) {
+            $requestUrl = $this->RemoveAtStart($requestUrl, $this->rootPath);
+            $requestUrl = $this->RemoveAtStart($requestUrl, '/');
+        }
+        
         $requestContext->Url = $requestUrl;
         
         return $requestContext;
@@ -56,6 +72,7 @@ class Routing {
     private function MatchRoute(RequestContext $requestContext) {
         $urlParts = explode('/', $requestContext->Url);
         $urlPartsCount = count($urlParts);
+        $routeValues = [];
 
         foreach ($this->registeredRoutes as $routeName => $routeSettings) {
             $routePartsCount = count($routeSettings['parts']);
@@ -68,7 +85,8 @@ class Routing {
                 $routePartValueMatchResult = preg_match('/{([a-zA-Z0-9_-]+?)}/', $routePartValue, $routePartValueMatches);
                 if ($routePartValueMatchResult > 0) {
                     // route part is a placeholder
-                    // todo: add value condition support
+                    $routePartValueName = $routePartValueMatches[1];
+                    $routeValues[$routePartValueName] = $urlPartValue;
                 } else {
                     // route part is a literal value
                     if ($routePartValue != $urlPartValue) {
@@ -82,7 +100,10 @@ class Routing {
             }
 
             if ($continueProcessing) {
-                return $routeSettings;                
+                return [
+                    'route' => $routeSettings,
+                    'values' => $routeValues
+                ]; 
             }
         }
 
@@ -90,12 +111,9 @@ class Routing {
     }
 
     private function HandleRoute(RequestContext $requestContext, array $routeSettings) {
-        print_r($requestContext);
-        print('<br>');
+        //print_r($requestContext);
+        //print('<br>');
         print_r($routeSettings);
-
-
-
 
     }
 
@@ -113,9 +131,9 @@ class Routing {
 }
 
 $routing = new Routing();
+$routing->SetRootPath('PHPRouting');
 $routing->RegisterRoute('DisplayPage', 'page/{pageName}', [ 'controller' => 'Page', 'action' => 'Display' ]);
 $routing->RegisterRoute('Default', '{controller}/{action}');
-
 $routing->HandleRequest();
 
 
