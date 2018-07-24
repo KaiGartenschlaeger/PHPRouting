@@ -1,0 +1,10 @@
+
+RewriteEngine On
+
+#RewriteCond %{HTTP_HOST} ^mydomain.com
+#RewriteRule (.*) http://www.mydomain.com/$1 [R=301,L]
+
+RewriteCond %{SCRIPT_FILENAME} !-f
+RewriteCond %{SCRIPT_FILENAME} !-d
+
+RewriteRule .* index.php
