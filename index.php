@@ -11,6 +11,7 @@
 <?php
 
 include_once 'Mvc/Routing.inc.php';
+include_once 'Controller/PageController.php';
 
 //echo __DIR__ . '<br>';
 //echo dirname(__DIR__);

@@ -119,7 +119,16 @@ class Routing {
             if ($isMatch) {
                 
                 // todo: resolve controller name
+                $controllerName = $route['defaults']['controller'];
+                if (array_key_exists('controller', $routeValues)) {
+                    $controllerName = $routeValues['controller'];
+                }
+
                 // todo: resolve action name
+                $actionName = $route['defaults']['action'];
+                if (array_key_exists('action', $routeValues)) {
+                    $actionName = $routeValues['action'];
+                }
                 
                 // todo: pass query string values to route values
                 // todo: pass form post values to route values
@@ -128,8 +137,8 @@ class Routing {
                 return [
                     'route' => $route,
                     'values' => $routeValues,
-                    'controller' => 'todo',
-                    'action' => 'todo'
+                    'controller' => $controllerName,
+                    'action' => $actionName
                 ];
 
             }
@@ -150,18 +159,18 @@ class Routing {
 
     private function HandleRoute(RequestContext $requestContext, array $routeSettings) {
         
-        //print_pre($requestContext);
-        //print_pre($routeSettings);
+        print_pre($requestContext);
+        print_pre($routeSettings);
 
         // todo: call matching controller / action
 
         // commands:
         // method_exists($controllerInstance, 'methodName');
 
-        $controllerName  = 'Page';
-        $actionName      = 'Display';
+        $controllerName  = $routeSettings['controller'];
+        $actionName      = $routeSettings['action'];
 
-        if (!class_exists($controllerName, false)) {
+        if (!class_exists($controllerName . 'Controller', false)) {
             // try to autoload
             $fullPath = str_replace('{controller}', $controllerName, $this->controllerPath);
             include_once $fullPath;
