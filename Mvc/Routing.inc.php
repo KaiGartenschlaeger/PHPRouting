@@ -159,8 +159,8 @@ class Routing {
 
     private function HandleRoute(RequestContext $requestContext, array $routeSettings) {
         
-        print_pre($requestContext);
-        print_pre($routeSettings);
+        //print_pre($requestContext);
+        //print_pre($routeSettings);
 
         // todo: call matching controller / action
 
@@ -171,37 +171,50 @@ class Routing {
         $actionName      = $routeSettings['action'];
 
         if (!class_exists($controllerName . 'Controller', false)) {
+            
             // try to autoload
             $fullPath = str_replace('{controller}', $controllerName, $this->controllerPath);
-            include_once $fullPath;
-            
+
+            if (file_exists($fullPath)) {
+                include_once $fullPath;
+            }
+
             //trigger_error('Could not find a controller with name "' . 'Page' . '".', E_USER_ERROR);
         }
 
-        //$actionMethodInfo = new ReflectionMethod($controllerName . 'Controller', $actionName);
-        //$params = $actionMethodInfo->getParameters();
-        //foreach ($params as $param) {
-        //    //$param is an instance of ReflectionParameter
-        //    //echo 'paramName: ' . $param->getName() . '<br>';
-        //    //echo 'optional: ' . $param->isOptional() . '<br>';
-        //}
+        if (class_exists($controllerName . 'Controller', false)) {
+            
+            //$actionMethodInfo = new ReflectionMethod($controllerName . 'Controller', $actionName);
+            //$params = $actionMethodInfo->getParameters();
+            //foreach ($params as $param) {
+            //    //$param is an instance of ReflectionParameter
+            //    //echo 'paramName: ' . $param->getName() . '<br>';
+            //    //echo 'optional: ' . $param->isOptional() . '<br>';
+            //}
 
-        $controllerInfo = new ReflectionClass($controllerName . 'Controller');
-        $controllerInstance = $controllerInfo->newInstance();
+            $controllerInfo = new ReflectionClass($controllerName . 'Controller');
+            $controllerInstance = $controllerInfo->newInstance();
 
-        $actionInfo = $controllerInfo->getMethod($actionName);
-        
-        $actionParameters = $actionInfo->getParameters();
-        foreach ($actionParameters as $parameter) {
-            //http://php.net/manual/de/class.reflectionparameter.php
-            //echo $parameter->getName();
-            //echo $parameter->isOptional();
-            //echo $parameter->allowsNull();
-            //echo $parameter->getPosition();
+            $actionInfo = $controllerInfo->getMethod($actionName);
+            
+            $actionParameters = $actionInfo->getParameters();
+            foreach ($actionParameters as $parameter) {
+                //http://php.net/manual/de/class.reflectionparameter.php
+                //echo $parameter->getName();
+                //echo $parameter->isOptional();
+                //echo $parameter->allowsNull();
+                //echo $parameter->getPosition();
+            }
+
+            $actionInfo->invokeArgs($controllerInstance, ['test 123']);
+            //$actionInfo->invoke($controllerInstance, ['test 123']);
+
+        } else {
+
+            // todo: add default route handler
+            trigger_error('No matching route found.', E_USER_WARNING);
+
         }
-
-        $actionInfo->invokeArgs($controllerInstance, ['test 123']);
-        //$actionInfo->invoke($controllerInstance, ['test 123']);
 
     }
 
