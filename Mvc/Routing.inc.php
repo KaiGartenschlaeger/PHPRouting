@@ -3,7 +3,6 @@
 include_once 'Helper.inc.php';
 include_once 'RequestContext.inc.php';
 
-
 class Routing {
 
     private $registeredRoutes = [];
@@ -82,7 +81,7 @@ class Routing {
 
         $urlParts = explode('/', $requestContext->Path);
         $urlPartsCount = count($urlParts);
-        
+
         $routeValues = [];
 
         foreach ($this->registeredRoutes as $route) {
@@ -130,6 +129,10 @@ class Routing {
                     $actionName = $routeValues['action'];
                 }
                 
+                if (empty($controllerName) || empty($actionName)) {
+                    return null;
+                }
+
                 // todo: pass query string values to route values
                 // todo: pass form post values to route values
 
@@ -150,23 +153,8 @@ class Routing {
 
     }
 
-    //private function ControllerClassAutoLoader($controllerName) {
-    //
-    //    $fullPath = str_replace('{controller}', $controllerName, $this->controllerPath);
-    //    include_once $fullPath;
-    //
-    //}
-
     private function HandleRoute(RequestContext $requestContext, array $routeSettings) {
         
-        //print_pre($requestContext);
-        //print_pre($routeSettings);
-
-        // todo: call matching controller / action
-
-        // commands:
-        // method_exists($controllerInstance, 'methodName');
-
         $controllerName  = $routeSettings['controller'];
         $actionName      = $routeSettings['action'];
 
@@ -174,48 +162,32 @@ class Routing {
             
             // try to autoload
             $fullPath = str_replace('{controller}', $controllerName, $this->controllerPath);
-
             if (file_exists($fullPath)) {
                 include_once $fullPath;
             }
 
-            //trigger_error('Could not find a controller with name "' . 'Page' . '".', E_USER_ERROR);
         }
 
-        if (class_exists($controllerName . 'Controller', false)) {
-            
-            //$actionMethodInfo = new ReflectionMethod($controllerName . 'Controller', $actionName);
-            //$params = $actionMethodInfo->getParameters();
-            //foreach ($params as $param) {
-            //    //$param is an instance of ReflectionParameter
-            //    //echo 'paramName: ' . $param->getName() . '<br>';
-            //    //echo 'optional: ' . $param->isOptional() . '<br>';
-            //}
-
-            $controllerInfo = new ReflectionClass($controllerName . 'Controller');
-            $controllerInstance = $controllerInfo->newInstance();
-
-            $actionInfo = $controllerInfo->getMethod($actionName);
-            
-            $actionParameters = $actionInfo->getParameters();
-            foreach ($actionParameters as $parameter) {
-                //http://php.net/manual/de/class.reflectionparameter.php
-                //echo $parameter->getName();
-                //echo $parameter->isOptional();
-                //echo $parameter->allowsNull();
-                //echo $parameter->getPosition();
-            }
-
-            $actionInfo->invokeArgs($controllerInstance, ['test 123']);
-            //$actionInfo->invoke($controllerInstance, ['test 123']);
-
-        } else {
-
-            // todo: add default route handler
-            trigger_error('No matching route found.', E_USER_WARNING);
-
+        if (!class_exists($controllerName . 'Controller', false)) {
+            trigger_error('Could not resolve "' . $controllerName . 'Controller".', E_USER_WARNING);
+            return false;
         }
 
+        $controllerInfo = new ReflectionClass($controllerName . 'Controller');
+        
+        if (!$controllerInfo->hasMethod($actionName)) {
+            trigger_error('Could not resolve action "' . $actionName . '" for controller "' . $controllerName . 'Controller".', E_USER_WARNING);
+            return false;
+        }
+
+        $actionInfo = $controllerInfo->getMethod($actionName);
+        $actionParameters = $actionInfo->getParameters();
+        
+        $controllerInstance = $controllerInfo->newInstance();
+        $actionInfo->invokeArgs($controllerInstance, ['test 123']);
+
+        return true;
+            
     }
 
     public function HandleRequest() {
