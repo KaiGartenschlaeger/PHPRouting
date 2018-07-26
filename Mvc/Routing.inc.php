@@ -39,7 +39,7 @@ class Routing {
             trigger_error('$routeUrl or $routeDefaults must define the controller name.', E_USER_ERROR);
         }
 
-        $routeSettings = [
+        $route = [
             'name' => $routeName,
             'url' => $routeUrl,
             'parts' => explode('/', $routeUrl),
@@ -47,7 +47,7 @@ class Routing {
             'constraints' => $routeConstraints
         ];
 
-        $this->registeredRoutes[$routeName] = $routeSettings;
+        $this->registeredRoutes[$routeName] = $route;
 
     }
 
@@ -56,30 +56,30 @@ class Routing {
         $url     = getCurrentUrl();
         $urlData = parse_url($url);
 
-        $requestContext = new RequestContext();
-        $requestContext->Url = $url;
+        $request = new RequestContext();
+        $request->Url = $url;
         
-        $requestContext->Path = $urlData['path'];
-        $requestContext->Path = str_removeFromStart($requestContext->Path, '/');
+        $request->Path = $urlData['path'];
+        $request->Path = str_removeFromStart($request->Path, '/');
 
         if (!empty($this->rootPath)) {
-            $requestContext->Path = str_removeFromStart($requestContext->Path, $this->rootPath);
-            $requestContext->Path = str_removeFromStart($requestContext->Path, '/');
+            $request->Path = str_removeFromStart($request->Path, $this->rootPath);
+            $request->Path = str_removeFromStart($request->Path, '/');
         }
 
         if (array_key_exists('query', $urlData)) {
-            $requestContext->Query = $urlData['query'];    
+            $request->Query = $urlData['query'];    
         } else {
-            $requestContext->Query = [];
+            $request->Query = [];
         }
         
-        return $requestContext;
+        return $request;
 
     }
 
-    private function MatchRoute(RequestContext $requestContext) {
+    private function MatchRoute(RequestContext $request) {
 
-        $urlParts = explode('/', $requestContext->Path);
+        $urlParts = explode('/', $request->Path);
         $urlPartsCount = count($urlParts);
 
         $routeValues = [];
@@ -103,7 +103,7 @@ class Routing {
 
                     } else {
                         // static part
-                        if ($urlParts[$routePartIndex] != $routePart) {
+                        if (strtolower($urlParts[$routePartIndex]) != strtolower($routePart)) {
                             $isMatch = false;
                         }
                     }
@@ -153,10 +153,10 @@ class Routing {
 
     }
 
-    private function HandleRoute(RequestContext $requestContext, array $routeSettings) {
+    private function HandleRoute(RequestContext $request, array $route) {
         
-        $controllerName  = $routeSettings['controller'];
-        $actionName      = $routeSettings['action'];
+        $controllerName  = $route['controller'];
+        $actionName      = $route['action'];
 
         if (!class_exists($controllerName . 'Controller', false)) {
             
@@ -181,13 +181,148 @@ class Routing {
         }
 
         $actionInfo = $controllerInfo->getMethod($actionName);
-        $actionParameters = $actionInfo->getParameters();
         
-        $controllerInstance = $controllerInfo->newInstance();
-        $actionInfo->invokeArgs($controllerInstance, ['test 123']);
+        $this->HandleActionCall($request, $route, $controllerInfo, $actionInfo);
 
         return true;
             
+    }
+
+    private function GetRouteValue(array $route, string $name, &$value = null) {
+        
+        if (array_key_exists($name, $route['values'])) {
+
+            $value = $route['values'][$name];
+            return true;
+
+        } else if (array_key_exists($name, $route['route']['defaults'])) {
+            
+            $value = $route['route']['defaults'][$name];
+            return true;
+
+        }
+        
+        return false;
+
+    }
+
+    private function TryConvertValue(ReflectionNamedType $targetType, $value, &$convertedValue = null) {
+
+        switch ($targetType->getName()) {
+
+            case 'string':
+                $convertedValue = $value;
+                return true;
+
+            case 'int':
+                $convertedValue = intval($value);
+                return true;
+
+            case 'float':
+                $convertedValue = doubleval($value);
+                return true;
+
+            case 'bool':
+                $convertedValue = boolval($value);
+                return true;
+            
+        }
+
+        return false;
+
+    }
+
+    private function HandleActionCall(RequestContext $request, array $route, ReflectionClass $controllerInfo, ReflectionMethod $actionInfo) {
+
+        $parameters = $actionInfo->getParameters();
+        
+        if (count($parameters) > 0) {
+
+            $args = [];
+            
+            foreach ($parameters as $param) {
+        
+                $paramName  = $param->getName();
+                $isOptional = $param->isOptional();
+                $allowsNull = $param->allowsNull();
+                $paramType  = $param->getType();
+                
+                if ($isOptional) {
+
+                    // optional
+                    
+                    if ($this->GetRouteValue($route, $paramName, $routeValue)) {
+
+                        if ($this->TryConvertValue($paramType, $routeValue, $convertedRouteValue)) {
+
+                            array_push($args, $convertedRouteValue);
+
+                        } else {
+
+                            trigger_error('Not supported', E_USER_ERROR);
+
+                        }
+
+                    } else {
+
+                        $defaultValue = $param->getDefaultValue();
+                        array_push($args, $defaultValue);
+
+                    }
+
+                } else if ($allowsNull) {
+
+                    // nullable
+        
+                    array_push($args, null);
+        
+                } else {
+        
+                    // typed
+
+                    if ($paramType != null) {
+        
+                        $typeName = $paramType->getName();
+                        switch ($typeName) {
+                            case 'string':
+                                array_push($args, '');
+                                break;
+                            case 'int':
+                            case 'float':
+                                array_push($args, 0);
+                                break;
+                            case 'bool':
+                                array_push($args, false);
+                                break;
+                            case 'array':
+                                array_push($args, []);
+                                break;
+        
+                            default:
+                                // todo
+                                break;
+                        }
+                        
+                    } else {
+        
+                        array_push($args, null);
+        
+                    }
+        
+                }
+                
+            }
+        
+            $controllerInstance = $controllerInfo->newInstance();
+            $actionInfo->invokeArgs($controllerInstance, $args);
+        
+        } else {
+        
+            $controllerInstance = $controllerInfo->newInstance();
+            $actionInfo->invoke($controllerInstance);
+        
+        }
+
     }
 
     public function HandleRequest() {
@@ -196,16 +331,14 @@ class Routing {
             trigger_error('There must be at least one registered route.', E_USER_ERROR);
         }
         
-        //spl_autoload_register([$this, 'ControllerClassAutoLoader']);
-
-        $requestContext = $this->CreateRequestContext();
+        $request = $this->CreateRequestContext();
         
-        $matchedRoute = $this->MatchRoute($requestContext);
-        if ($matchedRoute == null) {
+        $route = $this->MatchRoute($request);
+        if ($route == null) {
             trigger_error('No matching route found', E_USER_ERROR);
         }
 
-        $this->HandleRoute($requestContext, $matchedRoute);
+        $this->HandleRoute($request, $route);
 
     }
 

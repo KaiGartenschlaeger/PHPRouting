@@ -4,9 +4,15 @@ include_once dirname(__DIR__) . '/Mvc/Controller.inc.php';
 
 class PageController extends Controller {
 
-    public function Display(string $pageName = null) {
+    public function DisplayById(int $pageId) {
 
-        echo 'PageController.Display called, pageName = ' . $pageName;
+        echo 'PageController.DisplayById called, pageId = ' . $pageId;
+        
+    }
+
+    public function DisplayByName(string $pageName) {
+
+        echo 'PageController.DisplayByName called, pageName = ' . $pageName;
         
     }
 
