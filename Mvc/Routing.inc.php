@@ -106,7 +106,7 @@ class Routing {
 
                             // todo: respect constrains
                             if (preg_match('/^' . $constraintPattern . '$/', $urlParts[$routePartIndex], $matches)) {
-                                
+
                                 $routeValues[$routePartName] = $urlParts[$routePartIndex];
                                 $isMatch = true;
 
@@ -257,6 +257,29 @@ class Routing {
 
     }
 
+    private function TryGetDefaultValueByType(ReflectionNamedType $targetType, &$value) {
+
+        switch ($targetType->getName()) {
+
+            case 'string':
+                $value = '';
+                return true;
+
+            case 'int':
+            case 'float':
+                $value = 0;
+                return true;
+
+            case 'bool':
+                $value = false;
+                return true;
+            
+        }
+
+        return false;
+
+    }
+
     private function HandleActionCall(RequestContext $request, array $route, ReflectionClass $controllerInfo, ReflectionMethod $actionInfo) {
 
         $parameters = $actionInfo->getParameters();
@@ -268,9 +291,9 @@ class Routing {
             foreach ($parameters as $param) {
         
                 $paramName  = $param->getName();
+                $paramType  = $param->getType();
                 $isOptional = $param->isOptional();
                 $allowsNull = $param->allowsNull();
-                $paramType  = $param->getType();
                 
                 if ($isOptional) {
 
@@ -284,7 +307,15 @@ class Routing {
 
                         } else {
 
-                            trigger_error('Not supported', E_USER_ERROR);
+                            if ($allowsNull) {
+
+                                array_push($args, null);
+
+                            } else {
+
+                                trigger_error('Not supported', E_USER_ERROR);
+
+                            }
 
                         }
 
@@ -298,8 +329,24 @@ class Routing {
                 } else if ($allowsNull) {
 
                     // nullable
-        
-                    array_push($args, null);
+
+                    if ($this->GetRouteValue($route, $paramName, $routeValue)) {
+
+                        if ($this->TryConvertValue($paramType, $routeValue, $convertedRouteValue)) {
+
+                            array_push($args, $convertedRouteValue);
+
+                        } else {
+
+                            array_push($args, null);
+
+                        }
+
+                    } else {
+
+                        array_push($args, null);
+
+                    }
         
                 } else {
         
@@ -307,31 +354,33 @@ class Routing {
 
                     if ($paramType != null) {
         
-                        $typeName = $paramType->getName();
-                        switch ($typeName) {
-                            case 'string':
-                                array_push($args, '');
-                                break;
-                            case 'int':
-                            case 'float':
-                                array_push($args, 0);
-                                break;
-                            case 'bool':
-                                array_push($args, false);
-                                break;
-                            case 'array':
-                                array_push($args, []);
-                                break;
-        
-                            default:
-                                // todo
-                                break;
+                        if ($this->GetRouteValue($route, $paramName, $routeValue) &&
+                            $this->TryConvertValue($paramType, $routeValue, $convertedValue)) {
+
+                                array_push($args, $convertedValue);
+
+                        } else if ($this->TryGetDefaultValueByType($paramType, $typedDefaultValue)) {
+
+                                array_push($args, $typedDefaultValue);
+
+                        } else {
+
+                            trigger_error('Not supported', E_USER_ERROR);
+
                         }
                         
                     } else {
         
-                        array_push($args, null);
-        
+                        if ($this->GetRouteValue($route, $paramName, $routeValue)) {
+
+                            array_push($args, $routeValue);
+
+                        } else {
+
+                            array_push($args, null);
+
+                        }
+
                     }
         
                 }

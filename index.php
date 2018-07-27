@@ -18,7 +18,7 @@ $routing->SetRootPath('PHPRouting');
 $routing->SetControllerPath($_SERVER['DOCUMENT_ROOT'] . '/PHPRouting/Controller/{controller}Controller.php');
 
 $routing->RegisterRoute('DisplayById', 
-    'page/{pageId}', 
+    'page/{pageId}',
     [ 'controller' => 'Page', 'action' => 'DisplayById', 'pageId' => 1 ],
     [ 'pageId' => '\d+' ]);
 
