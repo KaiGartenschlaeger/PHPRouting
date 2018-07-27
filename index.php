@@ -14,13 +14,20 @@ include_once 'Mvc/Routing.inc.php';
 include_once 'Controller/PageController.php';
 
 $routing = new Routing();
-
 $routing->SetRootPath('PHPRouting');
 $routing->SetControllerPath($_SERVER['DOCUMENT_ROOT'] . '/PHPRouting/Controller/{controller}Controller.php');
 
-$routing->RegisterRoute('DisplayById', 'page/{pageId}', [ 'controller' => 'Page', 'action' => 'DisplayById', 'pageId' => 1 ]);
-$routing->RegisterRoute('DisplayByName', 'page/{pageName}', [ 'controller' => 'Page', 'action' => 'DisplayByName', 'pageName' => 'start' ]);
-$routing->RegisterRoute('Default', '{controller}/{action}');
+$routing->RegisterRoute('DisplayById', 
+    'page/{pageId}', 
+    [ 'controller' => 'Page', 'action' => 'DisplayById', 'pageId' => 1 ],
+    [ 'pageId' => '\d+' ]);
+
+$routing->RegisterRoute('DisplayByName', 
+    'page/{pageName}', 
+    [ 'controller' => 'Page', 'action' => 'DisplayByName', 'pageName' => 'start' ]);
+
+$routing->RegisterRoute('Default', 
+    '{controller}/{action}');
 
 $routing->HandleRequest();
 

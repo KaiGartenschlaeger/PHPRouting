@@ -85,8 +85,10 @@ class Routing {
         $routeValues = [];
 
         foreach ($this->registeredRoutes as $route) {
+
             $routePartsCount = count($route['parts']);
             $isMatch = true;
+            $hasConstraints = is_array($route['constraints']);
 
             for ($routePartIndex = 0; $routePartIndex < $routePartsCount; $routePartIndex++) {                
                 $routePart = $route['parts'][$routePartIndex];
@@ -95,23 +97,46 @@ class Routing {
                     
                     $routePartValueMatchResult = preg_match('/{([a-zA-Z0-9_-]+?)}/', $routePart, $routePartMatches);
                     if ($routePartValueMatchResult > 0) {
+
                         // dynamic part
                         $routePartName = $routePartMatches[1];
-                        $routeValues[$routePartName] = $urlParts[$routePartIndex];
+                        
+                        if ($hasConstraints && array_key_exists($routePartName, $route['constraints'])) {
+                            $constraintPattern = $route['constraints'][$routePartName];
 
-                        // todo: respect constrains
+                            // todo: respect constrains
+                            if (preg_match('/^' . $constraintPattern . '$/', $urlParts[$routePartIndex], $matches)) {
+                                
+                                $routeValues[$routePartName] = $urlParts[$routePartIndex];
+                                $isMatch = true;
+
+                            } else {
+
+                                $isMatch = false;
+
+                            }
+
+                        } else {
+
+                            $routeValues[$routePartName] = $urlParts[$routePartIndex];
+
+                        }
 
                     } else {
+
                         // static part
                         if (strtolower($urlParts[$routePartIndex]) != strtolower($routePart)) {
                             $isMatch = false;
                         }
+
                     }
 
                 }
 
                 if (!$isMatch) {
+
                     break;
+
                 }
             }
 
