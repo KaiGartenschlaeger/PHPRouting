@@ -9,7 +9,7 @@ $routing = new Routing();
 Als nächstes sollte der Ordner-Pfad zu den Controller Klassen definiert werden:
 ~~~php
 $routing->SetControllerPath($_SERVER['DOCUMENT_ROOT'] . '/Controller/{controller}Controller.php');
-~~~~
+~~~
 
 > Der Platzhalter `{controller}` wird automatisch mit dem Name des aktuellen Controllers ersetzt.
 
